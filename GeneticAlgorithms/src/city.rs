@@ -21,13 +21,17 @@ impl City {
 }
 
 pub fn string_to_cities(contents: &String) -> Vec<City> {
+    //TODO: Error handling: Unwrapping of line + expected # elements
     let mut cities: Vec<City> = Vec::new();
-    for line in contents.lines() {
-        let mut words = line.split_whitespace();
-        let id = usize::from_str(words.next().unwrap()).unwrap();
-        let x = f64::from_str(words.next().unwrap()).unwrap();
-        let y = f64::from_str(words.next().unwrap()).unwrap();
-        cities.push(City::new(id, x, y));
+
+    for (i, line) in contents.lines().enumerate() {
+        let values: Vec<f64> = line
+            .split(',')
+            .map(|val| f64::from_str(val.trim()).unwrap())
+            .collect();
+
+        let c = City::new(i, values[1], values[2]);
+        cities.push(c);
     }
     cities
 }
@@ -35,10 +39,12 @@ pub fn string_to_cities(contents: &String) -> Vec<City> {
 pub fn random_cities(n: usize, mn: f64, mx: f64) -> Vec<City> {
     let mut rng = thread_rng();
     let mut cities: Vec<City> = Vec::new();
+
     for i in 0..n {
-        let x = rng.gen_range(mn, mx);
-        let y = rng.gen_range(mn, mx);
-        cities.push(City::new(i, x, y));
+        let x: f64 = rng.gen_range(mn, mx);
+        let y: f64 = rng.gen_range(mn, mx);
+        let c = City::new(i, x, y);
+        cities.push(c);
     }
     cities
 }
