@@ -1,0 +1,3 @@
+[submodule "RUSTGeneticAlgorithm"]
+	path = RUSTGeneticAlgorithm
+	url = https://github.com/mcleantom/RUSTGeneticAlgorithm.git
