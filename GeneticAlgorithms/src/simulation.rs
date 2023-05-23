@@ -4,13 +4,17 @@ use rand::{thread_rng, Rng};
 
 pub struct Simulation {
     iterations: usize,
+
     crossover_probability: f64,
     mutation_probability: f64,
     population_size: usize,
+
     number_of_cities: usize,
     cities: Vec<City>,
+
     number_of_mutations: usize,
     number_of_crossovers: usize,
+
     pub fitness: f64,
     pub dna: Vec<usize>,
 }
@@ -18,25 +22,28 @@ pub struct Simulation {
 impl Simulation {
     pub fn new(
         iterations: usize,
-        crossover_propability: f64,
-        mutation_propability: f64,
+        crossover_probability: f64,
+        mutation_probability: f64,
         population_size: usize,
         cities: Vec<City>,
     ) -> Self {
         assert_eq!(
             population_size % 10,
             0,
-            "Population size must be divisible by 10",
+            "population_size:{} should be divisible by 10",
+            population_size
         );
+
         let number_of_cities = cities.len();
         let number_of_mutations = 0;
         let number_of_crossovers = 0;
         let fitness = 0.0;
-        let dna = Vec::new();
+        let dna: Vec<usize> = Vec::new();
+
         Simulation {
             iterations,
-            crossover_probability: crossover_propability,
-            mutation_probability: mutation_propability,
+            crossover_probability,
+            mutation_probability,
             population_size,
             number_of_cities,
             cities,
@@ -47,56 +54,13 @@ impl Simulation {
         }
     }
 
-    pub fn run(&mut self, debug_level: usize, skip: usize) {
-        let mut population = random_population(self.population_size, &self.cities);
-        let mut champion = find_fittest(&population);
-
-        for i in 0..self.iterations {
-            population = self.generate_population(population);
-            let challenger = find_fittest(&population);
-            debug_print(
-                debug_level,
-                skip,
-                i,
-                &population,
-                &champion,
-                &challenger,
-                self.number_of_cities,
-            );
-            if challenger.fitness < champion.fitness {
-                champion = challenger;
-            }
-        }
-        self.fitness = champion.fitness;
-        self.dna = champion.dna;
-
-        if debug_level >= 2 {
-            self.print();
-        }
-    }
-
-    pub fn generate_population(&mut self, individuals: Vec<Individual>) -> Vec<Individual> {
-        assert_eq!(self.population_size % 2, 0, "Population size must be even");
-        let cumulative_weights = get_cumulative_weights(&individuals);
-        let mut next_population = Vec::new();
-
-        for _ in 0..(self.population_size / 2) {
-            let (mom, dad) = select_parents(&cumulative_weights, &individuals);
-            let (mut baby1, mut baby2) = self.generate_children(mom, dad);
-            self.might_mutate_child(&mut baby1);
-            self.might_mutate_child(&mut baby2);
-            next_population.push(baby1);
-            next_population.push(baby2);
-        }
-        next_population
-    }
-
     fn generate_children(
         &mut self,
         mom: &Individual,
         dad: &Individual,
     ) -> (Individual, Individual) {
         if thread_rng().gen_bool(self.crossover_probability) {
+            self.number_of_crossovers += 2;
             mom.cross_over(dad, &self.cities)
         } else {
             (mom.clone(), dad.clone())
@@ -106,6 +70,64 @@ impl Simulation {
     fn might_mutate_child(&mut self, child: &mut Individual) {
         if thread_rng().gen_bool(self.mutation_probability) {
             child.mutate(&self.cities);
+            self.number_of_mutations += 1;
+        }
+    }
+
+    pub fn generate_population(&mut self, individuals: Vec<Individual>) -> Vec<Individual> {
+        assert_eq!(
+            self.population_size % 2,
+            0,
+            "population_size:{} should be divisible by 2",
+            self.population_size
+        );
+
+        let cumulative_weights = get_cumulative_weights(&individuals);
+        let mut next_population = Vec::new();
+
+        for _ in 0..(self.population_size / 2) {
+            // generate two individuals per iteration
+
+            let (mom, dad) = select_parents(&cumulative_weights, &individuals);
+            let (mut daughter, mut son) = self.generate_children(&mom, &dad);
+            self.might_mutate_child(&mut daughter);
+            self.might_mutate_child(&mut son);
+
+            next_population.push(daughter);
+            next_population.push(son);
+        }
+        next_population
+    }
+
+    pub fn run(&mut self, debug_level: usize, skip: usize) {
+        assert!(skip > 0, "skip must be 1 or larger");
+
+        let mut population = random_population(self.population_size, &self.cities);
+        let mut champion = find_fittest(&population);
+
+        for i in 0..self.iterations {
+            population = self.generate_population(population);
+            let challenger = find_fittest(&population);
+            debug_print(
+                debug_level,
+                skip,
+                i + 1,
+                &population,
+                &champion,
+                &challenger,
+                self.number_of_cities,
+            );
+
+            if champion.fitness <= challenger.fitness {
+                champion = challenger;
+            }
+        }
+
+        self.fitness = champion.fitness;
+        self.dna = champion.dna;
+
+        if debug_level >= 2 {
+            self.print();
         }
     }
 
@@ -135,17 +157,6 @@ impl Simulation {
 
         println!("\n --------------- \n END \n --------------- \n");
     }
-}
-
-pub fn random_population(population_size: usize, cities: &[City]) -> Vec<Individual> {
-    let mut individuals: Vec<Individual> = Vec::new();
-    let number_of_cities = cities.len();
-    for _ in 0..population_size {
-        let dna = random_dna(number_of_cities);
-        let individual = Individual::new(dna, &cities);
-        individuals.push(individual);
-    }
-    individuals
 }
 
 fn debug_print(
